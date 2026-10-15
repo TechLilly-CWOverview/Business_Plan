@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 vs 2027 — Variance by Funding Status</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#f4f4f2;--surface:#fff;--surface-2:#f9f9f7;
+    --border:rgba(0,0,0,0.09);--border-strong:rgba(0,0,0,0.16);
+    --text-primary:#111110;--text-secondary:#6b6a66;--text-muted:#9d9b96;
+    --radius:8px;--blue:#2a78d6;--green:#1baf7a;--red:#e34948;
+    --green-bg:#eaf3de;--green-text:#3B6D11;--red-bg:#FCEBEB;--red-text:#791F1F;
+  }
+  body{font-family:-apple-system,'Segoe UI',Inter,sans-serif;background:var(--bg);color:var(--text-primary);font-size:14px;min-height:100vh}
+
+  /* topbar */
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:20}
+  .topbar-brand{display:flex;align-items:center;gap:10px}
+  .logo{width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#185FA5,#1baf7a);display:flex;align-items:center;justify-content:center}
+  .logo svg{width:15px;height:15px;fill:#fff}
+  .topbar-title{font-size:15px;font-weight:600}
+  .topbar-sub{font-size:12px;color:var(--text-muted);margin-left:10px}
+  .topbar-right{font-size:12px;color:var(--text-muted)}
+
+  .page{max-width:1340px;margin:0 auto;padding:1.5rem 2rem 3rem}
+
+  /* filter bar */
+  .filter-bar{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem 1.25rem;display:flex;align-items:flex-start;gap:1.5rem;flex-wrap:wrap;margin-bottom:1.25rem}
+  .filter-section{display:flex;flex-direction:column;gap:6px;min-width:160px}
+  .filter-label{font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+  .filter-bar select{font-size:13px;font-family:inherit;padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-primary);cursor:pointer;width:100%}
+  .filter-sep{width:1px;align-self:stretch;background:var(--border-strong);flex-shrink:0;margin:0 4px}
+  .btn-sm{font-size:12px;color:var(--blue);background:none;border:none;cursor:pointer;font-family:inherit;padding:4px 8px;border-radius:4px;font-weight:500;white-space:nowrap}
+  .btn-sm:hover{background:#e6f1fb}
+  .filter-actions{display:flex;gap:4px;align-items:flex-end;padding-bottom:2px}
+
+  /* kpi */
+  .kpi-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:1.25rem}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem 1.125rem}
+  .kpi-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+  .kpi-value{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+  .kpi-delta{font-size:12px;margin-top:3px}
+  .kpi-delta.up{color:var(--green-text)}.kpi-delta.down{color:var(--red-text)}
+
+  /* tabs */
+  .tabs{display:flex;gap:4px;margin-bottom:1.25rem;border-bottom:1px solid var(--border)}
+  .tab{font-size:13px;font-weight:500;padding:8px 16px;border:none;background:none;cursor:pointer;color:var(--text-secondary);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;white-space:nowrap}
+  .tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+  .tab:hover:not(.active){color:var(--text-primary)}
+  .panel{display:none}.panel.active{display:block}
+
+  /* chart grid */
+  .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:1.25rem}
+  .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.125rem 1.25rem}
+  .chart-card.full{grid-column:1/-1}
+  .chart-title{font-size:13px;font-weight:600;margin-bottom:4px}
+  .chart-sub{font-size:11px;color:var(--text-muted);margin-bottom:.75rem}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:.75rem}
+  .leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-secondary)}
+  .leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+  /* tables */
+  .table-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:1.5rem}
+  .table-header{padding:.875rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+  .table-title{font-size:13px;font-weight:600}
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:12px;min-width:700px}
+  thead tr{background:var(--surface-2)}
+  th{padding:8px 11px;text-align:right;font-weight:600;color:var(--text-muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap}
+  th.left,td.left{text-align:left}
+  td{padding:7px 11px;text-align:right;border-bottom:1px solid var(--border);color:var(--text-primary);font-variant-numeric:tabular-nums}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:#fafaf8}
+  .subtotal-row td{font-weight:700;background:#ececea;border-top:1.5px solid var(--border-strong);font-size:11.5px}
+  tfoot tr td{font-weight:700;background:var(--surface-2);border-top:2px solid var(--border-strong);border-bottom:none}
+
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;white-space:nowrap}
+  .badge.inc{background:var(--green-bg);color:var(--green-text)}
+  .badge.dec{background:var(--red-bg);color:var(--red-text)}
+  .val-up{color:#1baf7a}.val-down{color:#e34948}
+
+  .collapse-btn{font-size:12px;color:var(--blue);background:none;border:none;cursor:pointer;font-family:inherit;font-weight:500;padding:4px 8px;border-radius:4px}
+  .collapse-btn:hover{background:#e6f1fb}
+
+  footer{text-align:center;font-size:11px;color:var(--text-muted);padding-bottom:1.5rem}
+
+  @media(max-width:820px){
+    .page{padding:1rem}
+    .kpi-row{grid-template-columns:repeat(2,1fr)}
+    .chart-grid{grid-template-columns:1fr}
+    .chart-card.full{grid-column:1}
+    .topbar-sub{display:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-brand">
+    <div class="logo"><svg viewBox="0 0 24 24"><path d="M3 3h7v7H3zm11 0h7v7h-7zM3 14h7v7H3zm14 3a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg></div>
+    <span class="topbar-title">Variance by Funding Status</span>
+    <span class="topbar-sub">2026 Adj Plan vs 2027 Business Plan — All Business Areas</span>
+  </div>
+  <div class="topbar-right">All figures in USD &nbsp;·&nbsp; Amounts in $</div>
+</header>
+
+<main class="page">
+
+  <!-- FILTERS -->
+  <div class="filter-bar">
+    <div class="filter-section" style="min-width:200px">
+      <span class="filter-label">Funding status</span>
+      <select id="selFS" onchange="render()">
+        <option value="Total – All Funding Statuses">All funding statuses (Total)</option>
+        <option value="Funded">Funded</option>
+        <option value="Approved (Transferred)">Approved (Transferred)</option>
+        <option value="Approved (Bus Area Plan)">Approved (Bus Area Plan)</option>
+        <option value="PayGo - Chargeback">PayGo - Chargeback</option>
+        <option value="PayGo - Future Funding">PayGo - Future Funding</option>
+        <option value="Non-Transferred Agreements (Internal IT)">Non-Transferred Agreements (Internal IT)</option>
+        <option value="Non-Transferred Agreements (External IT)">Non-Transferred Agreements (External IT)</option>
+        <option value="Unplanned Add">Unplanned Add</option>
+        <option value="Pending">Pending</option>
+        <option value="Unfunded (Not Incl. Enterprise Reporting)">Unfunded (Not Incl. Enterprise Reporting)</option>
+      </select>
+    </div>
+    <div class="filter-sep"></div>
+    <div class="filter-section">
+      <span class="filter-label">Business area</span>
+      <select id="selBA" onchange="onBAChange()">
+        <option value="ALL">All business areas</option>
+        <option>Advanced Intelligence</option>
+        <option>Business Units</option>
+        <option>CTI - Commercial</option>
+        <option>CTI - MD</option>
+        <option>Cybersecurity</option>
+        <option>Digital Core</option>
+        <option>Digital Office</option>
+        <option>GS</option>
+        <option>MQ</option>
+        <option>Research</option>
+        <option>S/W Prod Engineering</option>
+      </select>
+    </div>
+    <div class="filter-section">
+      <span class="filter-label">Cost centre</span>
+      <select id="selCC" onchange="render()">
+        <option value="ALL">All cost centres</option>
+      </select>
+    </div>
+    <div class="filter-sep"></div>
+    <div class="filter-section">
+      <span class="filter-label">Cost element group</span>
+      <select id="selCEG" onchange="render()">
+        <option value="ALL">All cost element groups</option>
+      </select>
+    </div>
+    <div class="filter-sep"></div>
+    <div class="filter-actions">
+      <button class="btn-sm" onclick="resetFilters()">↺ Reset</button>
+    </div>
+  </div>
+
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('overview',this)">Overview</button>
+    <button class="tab" onclick="switchTab('bavar',this)">% Change by Business Area</button>
+    <button class="tab" onclick="switchTab('funding',this)">By Funding Status</button>
+    <button class="tab" onclick="switchTab('ceg',this)">By Cost Element Group</button>
+  </div>
+
+  <!-- OVERVIEW TAB -->
+  <div class="panel active" id="panel-overview">
+    <div class="chart-grid">
+      <div class="chart-card full">
+        <div class="chart-title">2026 adj plan vs 2027 BP — by business area</div>
+        <div class="legend">
+          <div class="leg-item"><span class="leg-dot" style="background:#2a78d6"></span>2026 adj plan</div>
+          <div class="leg-item"><span class="leg-dot" style="background:#1baf7a"></span>2027 BP</div>
+        </div>
+        <div style="position:relative;width:100%;height:300px"><canvas id="barBA"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Variance $ by business area</div>
+        <div class="chart-sub">2027 BP minus 2026 adj plan · green = increase · red = decrease</div>
+        <div style="position:relative;width:100%;height:300px"><canvas id="varBA"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">2027 BP mix by business area</div>
+        <div class="chart-sub">Share of total 2027 plan spend</div>
+        <div style="position:relative;width:100%;height:300px"><canvas id="pieBA"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- % CHANGE BY BA TAB -->
+  <div class="panel" id="panel-bavar">
+    <div class="chart-grid">
+      <div class="chart-card full">
+        <div class="chart-title">% change by business area — 2027 BP vs 2026 adj plan</div>
+        <div class="chart-sub">Positive = higher 2027 spend · Negative = lower 2027 spend</div>
+        <div style="position:relative;width:100%;height:320px"><canvas id="pctBA"></canvas></div>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-header"><span class="table-title">Business area % change summary</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th class="left">Business area</th>
+            <th>2026 adj plan</th><th>2027 BP</th>
+            <th>Var $</th><th>Var %</th><th>Direction</th>
+          </tr></thead>
+          <tbody id="baVarTableBody"></tbody>
+          <tfoot><tr id="baVarTotalRow"></tr></tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- FUNDING STATUS TAB -->
+  <div class="panel" id="panel-funding">
+    <div class="chart-grid">
+      <div class="chart-card full">
+        <div class="chart-title">2026 adj plan vs 2027 BP — by funding status</div>
+        <div class="legend">
+          <div class="leg-item"><span class="leg-dot" style="background:#2a78d6"></span>2026 adj plan</div>
+          <div class="leg-item"><span class="leg-dot" style="background:#1baf7a"></span>2027 BP</div>
+        </div>
+        <div style="position:relative;width:100%;height:300px"><canvas id="barFS"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Variance $ by funding status</div>
+        <div class="chart-sub">Green = increase · Red = decrease</div>
+        <div style="position:relative;width:100%;height:280px"><canvas id="varFS"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">2027 BP mix by funding status</div>
+        <div style="position:relative;width:100%;height:280px"><canvas id="pieFS"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COST ELEMENT GROUP TAB -->
+  <div class="panel" id="panel-ceg">
+    <div class="chart-grid">
+      <div class="chart-card full">
+        <div class="chart-title">2026 adj plan vs 2027 BP — by cost element group</div>
+        <div class="legend">
+          <div class="leg-item"><span class="leg-dot" style="background:#2a78d6"></span>2026 adj plan</div>
+          <div class="leg-item"><span class="leg-dot" style="background:#1baf7a"></span>2027 BP</div>
+        </div>
+        <div style="position:relative;width:100%;height:280px"><canvas id="barCEG"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Variance $ by cost element group</div>
+        <div style="position:relative;width:100%;height:240px"><canvas id="varCEG"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">2027 BP mix by cost element group</div>
+        <div style="position:relative;width:100%;height:240px"><canvas id="pieCEG"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FULL VARIANCE TABLE (always visible) -->
+  <div class="table-card">
+    <div class="table-header">
+      <div>
+        <div class="table-title">Full variance table — 2026 adj plan vs 2027 BP</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Every row by BA · CC · Cost element group · Subtotals per BA · Grand total</div>
+      </div>
+      <button class="collapse-btn" onclick="toggleFVT(this)">▲ Collapse</button>
+    </div>
+    <div id="fvtWrap">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="left">Business area</th>
+              <th class="left">Cost centre</th>
+              <th class="left">Cost element group</th>
+              <th class="left">Cost element</th>
+              <th class="left">Funding status</th>
+              <th>2026 adj plan</th>
+              <th>2027 BP</th>
+              <th>Var $</th>
+              <th>Var %</th>
+              <th>Direction</th>
+            </tr>
+          </thead>
+          <tbody id="fvtBody"></tbody>
+          <tfoot><tr id="fvtTotal"></tr></tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+<footer>Eli Lilly &amp; Company · Finance · Leadership review · All amounts USD · Source: 2026_x_2027_Comparison_including_C_B.xlsm — Variance by Funding tab</footer>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const DATA = [{"ba":"Advanced Intelligence","cc":"5500040","ceg":"Depr & Amort","ce":"2700-Fixed Asset Depreciation","fs":"Funded","ap":3780.43,"bp":19.98,"var":-3760.45},{"ba":"Advanced Intelligence","cc":"5500040","ceg":"Depr & Amort","ce":"2700-Fixed Asset Depreciation","fs":"Total \u2013 All Funding Statuses","ap":3780.43,"bp":19.98,"var":-3760.45},{"ba":"Advanced Intelligence","cc":"5500040","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Funded","ap":0.0,"bp":20000.0,"var":20000.0},{"ba":"Advanced Intelligence","cc":"5500040","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Non-Transferred Agreements (External IT)","ap":200000.0,"bp":0.0,"var":-200000.0},{"ba":"Advanced Intelligence","cc":"5500040","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Total \u2013 All Funding Statuses","ap":200000.0,"bp":20000.0,"var":-180000.0},{"ba":"Advanced Intelligence","cc":"5500040","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":4172450.04,"bp":3396652.08,"var":-775797.96},{"ba":"Advanced Intelligence","cc":"5500040","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":4172450.04,"bp":3396652.08,"var":-775797.96},{"ba":"Advanced Intelligence","cc":"5500040","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Funded","ap":5628.0,"bp":4920.0,"var":-708.0},{"ba":"Advanced Intelligence","cc":"5500040","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Total \u2013 All Funding Statuses","ap":5628.0,"bp":4920.0,"var":-708.0},{"ba":"Advanced Intelligence","cc":"5500040","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":83039.98,"bp":13500.0,"var":-69539.98},{"ba":"Advanced Intelligence","cc":"5500040","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":83039.98,"bp":13500.0,"var":-69539.98},{"ba":"Advanced Intelligence","cc":"5500040","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":258886.1,"bp":150000.0,"var":-108886.1},{"ba":"Advanced Intelligence","cc":"5500040","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":258886.1,"bp":150000.0,"var":-108886.1},{"ba":"Advanced Intelligence","cc":"5500063","ceg":"External Labor","ce":"7740-Contract Labor","fs":"PayGo - Future Funding","ap":0.0,"bp":960000.0,"var":960000.0},{"ba":"Advanced Intelligence","cc":"5500063","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":960000.0,"var":960000.0},{"ba":"Advanced Intelligence","cc":"5500063","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":3315328.04,"bp":2367850.44,"var":-947477.6},{"ba":"Advanced Intelligence","cc":"5500063","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Approved (Transferred)","ap":-213956.0,"bp":0.0,"var":213956.0},{"ba":"Advanced Intelligence","cc":"5500063","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":3101372.04,"bp":2367850.44,"var":-733521.6},{"ba":"Advanced Intelligence","cc":"5500063","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Funded","ap":5628.0,"bp":4952.0,"var":-676.0},{"ba":"Advanced Intelligence","cc":"5500063","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Total \u2013 All Funding Statuses","ap":5628.0,"bp":4952.0,"var":-676.0},{"ba":"Advanced Intelligence","cc":"5500063","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":75414.67,"bp":13800.0,"var":-61614.67},{"ba":"Advanced Intelligence","cc":"5500063","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":75414.67,"bp":13800.0,"var":-61614.67},{"ba":"Advanced Intelligence","cc":"5500063","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":247630.25,"bp":165000.0,"var":-82630.25},{"ba":"Advanced Intelligence","cc":"5500063","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":247630.25,"bp":165000.0,"var":-82630.25},{"ba":"Business Units","cc":"5500182","ceg":"Allocations In&Out","ce":"9052-Projects-Prof Services/Contract Labor","fs":"Funded","ap":0.0,"bp":2400000.0,"var":2400000.0},{"ba":"Business Units","cc":"5500182","ceg":"Allocations In&Out","ce":"9052-Projects-Prof Services/Contract Labor","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":2400000.0,"var":2400000.0},{"ba":"Business Units","cc":"5500182","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Funded","ap":0.0,"bp":26400.0,"var":26400.0},{"ba":"Business Units","cc":"5500182","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":26400.0,"var":26400.0},{"ba":"Business Units","cc":"5500182","ceg":"External Labor","ce":"4867-External Labor","fs":"PayGo - Chargeback","ap":0.0,"bp":5013112.2,"var":5013112.2},{"ba":"Business Units","cc":"5500182","ceg":"External Labor","ce":"4867-External Labor","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":5013112.2,"var":5013112.2},{"ba":"Business Units","cc":"5500182","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":2392960.59,"bp":-67919.52,"var":-2460880.11},{"ba":"Business Units","cc":"5500182","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Unfunded (Not Incl. Enterprise Reporting)","ap":0.0,"bp":2232080.48,"var":2232080.48},{"ba":"Business Units","cc":"5500182","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":2392960.59,"bp":2164160.96,"var":-228799.63},{"ba":"Business Units","cc":"5500182","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":0.0,"bp":3000.0,"var":3000.0},{"ba":"Business Units","cc":"5500182","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":3000.0,"var":3000.0},{"ba":"Business Units","cc":"5500182","ceg":"OTHER","ce":"1950-Moving Expenses","fs":"Funded","ap":11713.68,"bp":15000.0,"var":3286.32},{"ba":"Business Units","cc":"5500182","ceg":"OTHER","ce":"1950-Moving Expenses","fs":"Total \u2013 All Funding Statuses","ap":11713.68,"bp":15000.0,"var":3286.32},{"ba":"Business Units","cc":"5500182","ceg":"OTHER","ce":"2930-Vehicle Rent","fs":"Funded","ap":131.16,"bp":6996.0,"var":6864.84},{"ba":"Business Units","cc":"5500182","ceg":"OTHER","ce":"2930-Vehicle Rent","fs":"Total \u2013 All Funding Statuses","ap":131.16,"bp":6996.0,"var":6864.84},{"ba":"Business Units","cc":"5500182","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":242578.72,"bp":225000.0,"var":-17578.72},{"ba":"Business Units","cc":"5500182","ceg":"OTHER","ce":"3900-Travel Expense","fs":"PayGo - Chargeback","ap":0.0,"bp":225000.0,"var":225000.0},{"ba":"Business Units","cc":"5500182","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":242578.72,"bp":450000.0,"var":207421.28},{"ba":"Business Units","cc":"5500182","ceg":"OTHER","ce":"4161-Meals/Entertainment-Emply-Partially Dedu","fs":"Funded","ap":0.0,"bp":14004.0,"var":14004.0},{"ba":"Business Units","cc":"5500182","ceg":"OTHER","ce":"4161-Meals/Entertainment-Emply-Partially Dedu","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":14004.0,"var":14004.0},{"ba":"CTI - Commercial","cc":"5500038","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Funded","ap":0.0,"bp":26400.0,"var":26400.0},{"ba":"CTI - Commercial","cc":"5500038","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":26400.0,"var":26400.0},{"ba":"CTI - Commercial","cc":"5500038","ceg":"External Labor","ce":"4750-Professional Services","fs":"Approved (Transferred)","ap":0.0,"bp":1500000.0,"var":1500000.0},{"ba":"CTI - Commercial","cc":"5500038","ceg":"External Labor","ce":"4750-Professional Services","fs":"Non-Transferred Agreements (Internal IT)","ap":3812306.84,"bp":0.0,"var":-3812306.84},{"ba":"CTI - Commercial","cc":"5500038","ceg":"External Labor","ce":"4750-Professional Services","fs":"Total \u2013 All Funding Statuses","ap":3812306.84,"bp":1500000.0,"var":-2312306.84},{"ba":"CTI - Commercial","cc":"5500038","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Approved (Transferred)","ap":0.0,"bp":1666572.0,"var":1666572.0},{"ba":"CTI - Commercial","cc":"5500038","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Non-Transferred Agreements (Internal IT)","ap":789082.01,"bp":1594572.0,"var":805489.99},{"ba":"CTI - Commercial","cc":"5500038","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Total \u2013 All Funding Statuses","ap":789082.01,"bp":3261144.0,"var":2472061.99},{"ba":"CTI - Commercial","cc":"5500038","ceg":"Hdw & Sfw","ce":"3630-Computer Related Hardware","fs":"Funded","ap":0.0,"bp":4836.0,"var":4836.0},{"ba":"CTI - Commercial","cc":"5500038","ceg":"Hdw & Sfw","ce":"3630-Computer Related Hardware","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":4836.0,"var":4836.0},{"ba":"CTI - Commercial","cc":"5500038","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":3872242.94,"bp":6538227.96,"var":2665985.02},{"ba":"CTI - Commercial","cc":"5500038","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Unfunded (Not Incl. Enterprise Reporting)","ap":289129.68,"bp":0.0,"var":-289129.68},{"ba":"CTI - Commercial","cc":"5500038","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":4161372.62,"bp":6538227.96,"var":2376855.34},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"1680-Employee Relations - Other","fs":"Funded","ap":0.0,"bp":5124.0,"var":5124.0},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"1680-Employee Relations - Other","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":5124.0,"var":5124.0},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Funded","ap":14396.0,"bp":0.0,"var":-14396.0},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Total \u2013 All Funding Statuses","ap":14396.0,"bp":0.0,"var":-14396.0},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":201539.8,"bp":114084.0,"var":-87455.8},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":201539.8,"bp":114084.0,"var":-87455.8},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"1950-Moving Expenses","fs":"Funded","ap":16272.6,"bp":16272.0,"var":-0.6},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"1950-Moving Expenses","fs":"Total \u2013 All Funding Statuses","ap":16272.6,"bp":16272.0,"var":-0.6},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"2110-Recruiting","fs":"Funded","ap":0.0,"bp":2004.0,"var":2004.0},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"2110-Recruiting","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":2004.0,"var":2004.0},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"2930-Vehicle Rent","fs":"Funded","ap":343.32,"bp":7296.0,"var":6952.68},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"2930-Vehicle Rent","fs":"Total \u2013 All Funding Statuses","ap":343.32,"bp":7296.0,"var":6952.68},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":161095.88,"bp":450576.0,"var":289480.12},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":161095.88,"bp":450576.0,"var":289480.12},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"4161-Meals/Entertainment-Emply-Partially Dedu","fs":"Funded","ap":5856.0,"bp":14628.0,"var":8772.0},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"4161-Meals/Entertainment-Emply-Partially Dedu","fs":"Total \u2013 All Funding Statuses","ap":5856.0,"bp":14628.0,"var":8772.0},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"6020-Symposia","fs":"Funded","ap":12200.0,"bp":6096.0,"var":-6104.0},{"ba":"CTI - Commercial","cc":"5500038","ceg":"OTHER","ce":"6020-Symposia","fs":"Total \u2013 All Funding Statuses","ap":12200.0,"bp":6096.0,"var":-6104.0},{"ba":"CTI - Commercial","cc":"5500126","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Funded","ap":0.0,"bp":26400.0,"var":26400.0},{"ba":"CTI - Commercial","cc":"5500126","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Non-Transferred Agreements (Internal IT)","ap":762910.3,"bp":0.0,"var":-762910.3},{"ba":"CTI - Commercial","cc":"5500126","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Unfunded (Not Incl. Enterprise Reporting)","ap":71515.14,"bp":0.0,"var":-71515.14},{"ba":"CTI - Commercial","cc":"5500126","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Total \u2013 All Funding Statuses","ap":834425.44,"bp":26400.0,"var":-808025.44},{"ba":"CTI - Commercial","cc":"5500126","ceg":"External Labor","ce":"4867-External Labor","fs":"Funded","ap":0.0,"bp":310725.0,"var":310725.0},{"ba":"CTI - Commercial","cc":"5500126","ceg":"External Labor","ce":"4867-External Labor","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":310725.0,"var":310725.0},{"ba":"CTI - Commercial","cc":"5500126","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":3898701.12,"bp":4076232.24,"var":177531.12},{"ba":"CTI - Commercial","cc":"5500126","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":3898701.12,"bp":4076232.24,"var":177531.12},{"ba":"CTI - Commercial","cc":"5500126","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Funded","ap":9204.0,"bp":0.0,"var":-9204.0},{"ba":"CTI - Commercial","cc":"5500126","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Total \u2013 All Funding Statuses","ap":9204.0,"bp":0.0,"var":-9204.0},{"ba":"CTI - Commercial","cc":"5500126","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":128856.0,"bp":128856.0,"var":0.0},{"ba":"CTI - Commercial","cc":"5500126","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":128856.0,"bp":128856.0,"var":0.0},{"ba":"CTI - Commercial","cc":"5500126","ceg":"OTHER","ce":"1950-Moving Expenses","fs":"Funded","ap":10403.76,"bp":32388.0,"var":21984.24},{"ba":"CTI - Commercial","cc":"5500126","ceg":"OTHER","ce":"1950-Moving Expenses","fs":"Total \u2013 All Funding Statuses","ap":10403.76,"bp":32388.0,"var":21984.24},{"ba":"CTI - Commercial","cc":"5500126","ceg":"OTHER","ce":"2930-Vehicle Rent","fs":"Funded","ap":219.48,"bp":2208.0,"var":1988.52},{"ba":"CTI - Commercial","cc":"5500126","ceg":"OTHER","ce":"2930-Vehicle Rent","fs":"Total \u2013 All Funding Statuses","ap":219.48,"bp":2208.0,"var":1988.52},{"ba":"CTI - Commercial","cc":"5500126","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":265657.26,"bp":616356.0,"var":350698.74},{"ba":"CTI - Commercial","cc":"5500126","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":265657.26,"bp":616356.0,"var":350698.74},{"ba":"CTI - Commercial","cc":"5500126","ceg":"OTHER","ce":"4161-Meals/Entertainment-Emply-Partially Dedu","fs":"Funded","ap":3744.0,"bp":10152.0,"var":6408.0},{"ba":"CTI - Commercial","cc":"5500126","ceg":"OTHER","ce":"4161-Meals/Entertainment-Emply-Partially Dedu","fs":"Total \u2013 All Funding Statuses","ap":3744.0,"bp":10152.0,"var":6408.0},{"ba":"CTI - Commercial","cc":"5500126","ceg":"OTHER","ce":"6020-Symposia","fs":"Funded","ap":7800.0,"bp":7800.0,"var":0.0},{"ba":"CTI - Commercial","cc":"5500126","ceg":"OTHER","ce":"6020-Symposia","fs":"Total \u2013 All Funding Statuses","ap":7800.0,"bp":7800.0,"var":0.0},{"ba":"CTI - MD","cc":"5406256","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":0.0,"bp":106415.52,"var":106415.52},{"ba":"CTI - MD","cc":"5406256","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":106415.52,"var":106415.52},{"ba":"CTI - MD","cc":"5500083","ceg":"External Labor","ce":"4867-External Labor","fs":"Funded","ap":9660000.0,"bp":0.0,"var":-9660000.0},{"ba":"CTI - MD","cc":"5500083","ceg":"External Labor","ce":"4867-External Labor","fs":"Total \u2013 All Funding Statuses","ap":9660000.0,"bp":0.0,"var":-9660000.0},{"ba":"CTI - MD","cc":"5501356","ceg":"Depr & Amort","ce":"2700-Fixed Asset Depreciation","fs":"Funded","ap":32490.55,"bp":16365.12,"var":-16125.43},{"ba":"CTI - MD","cc":"5501356","ceg":"Depr & Amort","ce":"2700-Fixed Asset Depreciation","fs":"Total \u2013 All Funding Statuses","ap":32490.55,"bp":16365.12,"var":-16125.43},{"ba":"CTI - MD","cc":"5501356","ceg":"External Labor","ce":"2250-Taxes - General","fs":"Funded","ap":1345.67,"bp":0.0,"var":-1345.67},{"ba":"CTI - MD","cc":"5501356","ceg":"External Labor","ce":"2250-Taxes - General","fs":"Total \u2013 All Funding Statuses","ap":1345.67,"bp":0.0,"var":-1345.67},{"ba":"CTI - MD","cc":"5501356","ceg":"External Labor","ce":"3500-Supplies and Materials","fs":"Funded","ap":1200.0,"bp":0.0,"var":-1200.0},{"ba":"CTI - MD","cc":"5501356","ceg":"External Labor","ce":"3500-Supplies and Materials","fs":"Total \u2013 All Funding Statuses","ap":1200.0,"bp":0.0,"var":-1200.0},{"ba":"CTI - MD","cc":"5501356","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Funded","ap":300000.0,"bp":86400.0,"var":-213600.0},{"ba":"CTI - MD","cc":"5501356","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Non-Transferred Agreements (Internal IT)","ap":-299999.0,"bp":0.0,"var":299999.0},{"ba":"CTI - MD","cc":"5501356","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Total \u2013 All Funding Statuses","ap":1.0,"bp":86400.0,"var":86399.0},{"ba":"CTI - MD","cc":"5501356","ceg":"External Labor","ce":"4750-Professional Services","fs":"Funded","ap":-225228.57,"bp":8813205.0,"var":9038433.57},{"ba":"CTI - MD","cc":"5501356","ceg":"External Labor","ce":"4750-Professional Services","fs":"PayGo - Future Funding","ap":0.0,"bp":1500000.0,"var":1500000.0},{"ba":"CTI - MD","cc":"5501356","ceg":"External Labor","ce":"4750-Professional Services","fs":"Non-Transferred Agreements (Internal IT)","ap":400000.0,"bp":0.0,"var":-400000.0},{"ba":"CTI - MD","cc":"5501356","ceg":"External Labor","ce":"4750-Professional Services","fs":"Total \u2013 All Funding Statuses","ap":174771.43,"bp":10313205.0,"var":10138433.57},{"ba":"CTI - MD","cc":"5501356","ceg":"External Labor","ce":"4867-External Labor","fs":"Funded","ap":3480000.0,"bp":8501271.12,"var":5021271.12},{"ba":"CTI - MD","cc":"5501356","ceg":"External Labor","ce":"4867-External Labor","fs":"Non-Transferred Agreements (Internal IT)","ap":1968953.0,"bp":0.0,"var":-1968953.0},{"ba":"CTI - MD","cc":"5501356","ceg":"External Labor","ce":"4867-External Labor","fs":"Total \u2013 All Funding Statuses","ap":5448953.0,"bp":8501271.12,"var":3052318.12},{"ba":"CTI - MD","cc":"5501356","ceg":"Hdw & Sfw","ce":"3610-Purchased Software","fs":"Funded","ap":-343.66,"bp":0.0,"var":343.66},{"ba":"CTI - MD","cc":"5501356","ceg":"Hdw & Sfw","ce":"3610-Purchased Software","fs":"Total \u2013 All Funding Statuses","ap":-343.66,"bp":0.0,"var":343.66},{"ba":"CTI - MD","cc":"5501356","ceg":"Hdw & Sfw","ce":"3630-Computer Related Hardware","fs":"Funded","ap":2668.0,"bp":2756.76,"var":88.76},{"ba":"CTI - MD","cc":"5501356","ceg":"Hdw & Sfw","ce":"3630-Computer Related Hardware","fs":"Total \u2013 All Funding Statuses","ap":2668.0,"bp":2756.76,"var":88.76},{"ba":"CTI - MD","cc":"5501356","ceg":"Hdw & Sfw","ce":"3720-Telecom Services","fs":"Funded","ap":432.4,"bp":0.0,"var":-432.4},{"ba":"CTI - MD","cc":"5501356","ceg":"Hdw & Sfw","ce":"3720-Telecom Services","fs":"Total \u2013 All Funding Statuses","ap":432.4,"bp":0.0,"var":-432.4},{"ba":"CTI - MD","cc":"5501356","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":9389695.1,"bp":7388473.08,"var":-2001222.02},{"ba":"CTI - MD","cc":"5501356","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Non-Transferred Agreements (Internal IT)","ap":-129764.83,"bp":0.0,"var":129764.83},{"ba":"CTI - MD","cc":"5501356","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":9259930.26,"bp":7388473.08,"var":-1871457.18},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"1680-Employee Relations - Other","fs":"Funded","ap":6000.0,"bp":0.0,"var":-6000.0},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"1680-Employee Relations - Other","fs":"Total \u2013 All Funding Statuses","ap":6000.0,"bp":0.0,"var":-6000.0},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Funded","ap":18672.0,"bp":13536.0,"var":-5136.0},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Non-Transferred Agreements (Internal IT)","ap":-5005.0,"bp":0.0,"var":5005.0},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Total \u2013 All Funding Statuses","ap":13667.0,"bp":13536.0,"var":-131.0},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":230446.18,"bp":128025.24,"var":-102420.94},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Non-Transferred Agreements (Internal IT)","ap":-5005.0,"bp":0.0,"var":5005.0},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":225441.18,"bp":128025.24,"var":-97415.94},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"1950-Moving Expenses","fs":"Funded","ap":3662.02,"bp":3660.0,"var":-2.02},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"1950-Moving Expenses","fs":"Total \u2013 All Funding Statuses","ap":3662.02,"bp":3660.0,"var":-2.02},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"2930-Vehicle Rent","fs":"Funded","ap":2100.0,"bp":2100.0,"var":0.0},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"2930-Vehicle Rent","fs":"Total \u2013 All Funding Statuses","ap":2100.0,"bp":2100.0,"var":0.0},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":410265.62,"bp":900000.0,"var":489734.38},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Non-Transferred Agreements (Internal IT)","ap":280000.0,"bp":0.0,"var":-280000.0},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":690265.62,"bp":900000.0,"var":209734.38},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"4161-Meals/Entertainment-Emply-Partially Dedu","fs":"Funded","ap":6000.0,"bp":9996.0,"var":3996.0},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"4161-Meals/Entertainment-Emply-Partially Dedu","fs":"Total \u2013 All Funding Statuses","ap":6000.0,"bp":9996.0,"var":3996.0},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"5150-Memberships - General","fs":"Funded","ap":634.21,"bp":636.0,"var":1.79},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"5150-Memberships - General","fs":"Total \u2013 All Funding Statuses","ap":634.21,"bp":636.0,"var":1.79},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"6020-Symposia","fs":"Funded","ap":20000.0,"bp":20004.0,"var":4.0},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"6020-Symposia","fs":"Total \u2013 All Funding Statuses","ap":20000.0,"bp":20004.0,"var":4.0},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"7700-Other Miscellaneous Expense","fs":"Funded","ap":-41462.31,"bp":0.0,"var":41462.31},{"ba":"CTI - MD","cc":"5501356","ceg":"OTHER","ce":"7700-Other Miscellaneous Expense","fs":"Total \u2013 All Funding Statuses","ap":-41462.31,"bp":0.0,"var":41462.31},{"ba":"Cybersecurity","cc":"5500032","ceg":"Depr & Amort","ce":"2700-Fixed Asset Depreciation","fs":"Funded","ap":1253.63,"bp":99.9,"var":-1153.73},{"ba":"Cybersecurity","cc":"5500032","ceg":"Depr & Amort","ce":"2700-Fixed Asset Depreciation","fs":"Total \u2013 All Funding Statuses","ap":1253.63,"bp":99.9,"var":-1153.73},{"ba":"Cybersecurity","cc":"5500032","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Funded","ap":33767.76,"bp":40586.25,"var":6818.49},{"ba":"Cybersecurity","cc":"5500032","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Total \u2013 All Funding Statuses","ap":33767.76,"bp":40586.25,"var":6818.49},{"ba":"Cybersecurity","cc":"5500032","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":2199828.93,"bp":2192697.0,"var":-7131.93},{"ba":"Cybersecurity","cc":"5500032","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":2199828.93,"bp":2192697.0,"var":-7131.93},{"ba":"Cybersecurity","cc":"5500032","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Funded","ap":3680.69,"bp":3635.84,"var":-44.85},{"ba":"Cybersecurity","cc":"5500032","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Total \u2013 All Funding Statuses","ap":3680.69,"bp":3635.84,"var":-44.85},{"ba":"Cybersecurity","cc":"5500032","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":49244.65,"bp":104384.0,"var":55139.35},{"ba":"Cybersecurity","cc":"5500032","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":49244.65,"bp":104384.0,"var":55139.35},{"ba":"Cybersecurity","cc":"5500032","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":90047.35,"bp":150000.0,"var":59952.65},{"ba":"Cybersecurity","cc":"5500032","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":90047.35,"bp":150000.0,"var":59952.65},{"ba":"Cybersecurity","cc":"5500032","ceg":"OTHER","ce":"7700-Other Miscellaneous Expense","fs":"Funded","ap":1875.99,"bp":0.0,"var":-1875.99},{"ba":"Cybersecurity","cc":"5500032","ceg":"OTHER","ce":"7700-Other Miscellaneous Expense","fs":"Total \u2013 All Funding Statuses","ap":1875.99,"bp":0.0,"var":-1875.99},{"ba":"Digital Core","cc":"5500016","ceg":"Depr & Amort","ce":"2700-Fixed Asset Depreciation","fs":"Funded","ap":2280231.54,"bp":2811588.12,"var":531356.58},{"ba":"Digital Core","cc":"5500016","ceg":"Depr & Amort","ce":"2700-Fixed Asset Depreciation","fs":"Total \u2013 All Funding Statuses","ap":2280231.54,"bp":2811588.12,"var":531356.58},{"ba":"Digital Core","cc":"5500016","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Funded","ap":123815.16,"bp":123816.0,"var":0.84},{"ba":"Digital Core","cc":"5500016","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Total \u2013 All Funding Statuses","ap":123815.16,"bp":123816.0,"var":0.84},{"ba":"Digital Core","cc":"5500016","ceg":"Hdw & Sfw","ce":"2890-Software Maintenance","fs":"Non-Transferred Agreements (Internal IT)","ap":51505.0,"bp":0.0,"var":-51505.0},{"ba":"Digital Core","cc":"5500016","ceg":"Hdw & Sfw","ce":"2890-Software Maintenance","fs":"Total \u2013 All Funding Statuses","ap":51505.0,"bp":0.0,"var":-51505.0},{"ba":"Digital Core","cc":"5500016","ceg":"Hdw & Sfw","ce":"3630-Computer Related Hardware","fs":"Funded","ap":0.0,"bp":24144.0,"var":24144.0},{"ba":"Digital Core","cc":"5500016","ceg":"Hdw & Sfw","ce":"3630-Computer Related Hardware","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":24144.0,"var":24144.0},{"ba":"Digital Core","cc":"5500016","ceg":"Hdw & Sfw","ce":"3720-Telecom Services","fs":"Funded","ap":-2991.24,"bp":0.0,"var":2991.24},{"ba":"Digital Core","cc":"5500016","ceg":"Hdw & Sfw","ce":"3720-Telecom Services","fs":"Approved (Transferred)","ap":48240.0,"bp":48240.0,"var":0.0},{"ba":"Digital Core","cc":"5500016","ceg":"Hdw & Sfw","ce":"3720-Telecom Services","fs":"Total \u2013 All Funding Statuses","ap":45248.76,"bp":48240.0,"var":2991.24},{"ba":"Digital Core","cc":"5500016","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":284510.4,"bp":280695.48,"var":-3814.92},{"ba":"Digital Core","cc":"5500016","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":284510.4,"bp":280695.48,"var":-3814.92},{"ba":"Digital Core","cc":"5500016","ceg":"OTHER","ce":"1680-Employee Relations - Other","fs":"Funded","ap":518.52,"bp":0.0,"var":-518.52},{"ba":"Digital Core","cc":"5500016","ceg":"OTHER","ce":"1680-Employee Relations - Other","fs":"Total \u2013 All Funding Statuses","ap":518.52,"bp":0.0,"var":-518.52},{"ba":"Digital Core","cc":"5500016","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Funded","ap":-32.16,"bp":492.0,"var":524.16},{"ba":"Digital Core","cc":"5500016","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Total \u2013 All Funding Statuses","ap":-32.16,"bp":492.0,"var":524.16},{"ba":"Digital Core","cc":"5500016","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":5627.95,"bp":5628.0,"var":0.05},{"ba":"Digital Core","cc":"5500016","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":5627.95,"bp":5628.0,"var":0.05},{"ba":"Digital Core","cc":"5500016","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":22511.81,"bp":30000.0,"var":7488.19},{"ba":"Digital Core","cc":"5500016","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":22511.81,"bp":30000.0,"var":7488.19},{"ba":"Digital Core","cc":"5500035","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Funded","ap":0.0,"bp":4650.48,"var":4650.48},{"ba":"Digital Core","cc":"5500035","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":4650.48,"var":4650.48},{"ba":"Digital Core","cc":"5500035","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Funded","ap":343928.4,"bp":1500000.0,"var":1156071.6},{"ba":"Digital Core","cc":"5500035","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Total \u2013 All Funding Statuses","ap":343928.4,"bp":1500000.0,"var":1156071.6},{"ba":"Digital Core","cc":"5500035","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":3364041.36,"bp":3477456.72,"var":113415.36},{"ba":"Digital Core","cc":"5500035","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":3364041.36,"bp":3477456.72,"var":113415.36},{"ba":"Digital Core","cc":"5500035","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Funded","ap":5125.47,"bp":5345.64,"var":220.17},{"ba":"Digital Core","cc":"5500035","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Total \u2013 All Funding Statuses","ap":5125.47,"bp":5345.64,"var":220.17},{"ba":"Digital Core","cc":"5500035","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":48972.9,"bp":48972.84,"var":-0.06},{"ba":"Digital Core","cc":"5500035","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":48972.9,"bp":48972.84,"var":-0.06},{"ba":"Digital Core","cc":"5500035","ceg":"OTHER","ce":"1950-Moving Expenses","fs":"Funded","ap":3859.17,"bp":2033.52,"var":-1825.65},{"ba":"Digital Core","cc":"5500035","ceg":"OTHER","ce":"1950-Moving Expenses","fs":"Total \u2013 All Funding Statuses","ap":3859.17,"bp":2033.52,"var":-1825.65},{"ba":"Digital Core","cc":"5500035","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":142421.84,"bp":142421.88,"var":0.04},{"ba":"Digital Core","cc":"5500035","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":142421.84,"bp":142421.88,"var":0.04},{"ba":"Digital Core","cc":"5500035","ceg":"OTHER","ce":"4161-Meals/Entertainment-Emply-Partially Dedu","fs":"Funded","ap":1808.99,"bp":1661.4,"var":-147.59},{"ba":"Digital Core","cc":"5500035","ceg":"OTHER","ce":"4161-Meals/Entertainment-Emply-Partially Dedu","fs":"Total \u2013 All Funding Statuses","ap":1808.99,"bp":1661.4,"var":-147.59},{"ba":"Digital Core","cc":"5500105","ceg":"Depr & Amort","ce":"2700-Fixed Asset Depreciation","fs":"Funded","ap":0.0,"bp":959.04,"var":959.04},{"ba":"Digital Core","cc":"5500105","ceg":"Depr & Amort","ce":"2700-Fixed Asset Depreciation","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":959.04,"var":959.04},{"ba":"Digital Core","cc":"5500105","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Funded","ap":11255.88,"bp":25200.0,"var":13944.12},{"ba":"Digital Core","cc":"5500105","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Total \u2013 All Funding Statuses","ap":11255.88,"bp":25200.0,"var":13944.12},{"ba":"Digital Core","cc":"5500105","ceg":"External Labor","ce":"4867-External Labor","fs":"Funded","ap":2269075.56,"bp":0.0,"var":-2269075.56},{"ba":"Digital Core","cc":"5500105","ceg":"External Labor","ce":"4867-External Labor","fs":"Approved (Transferred)","ap":-1650000.0,"bp":0.0,"var":1650000.0},{"ba":"Digital Core","cc":"5500105","ceg":"External Labor","ce":"4867-External Labor","fs":"Total \u2013 All Funding Statuses","ap":619075.56,"bp":0.0,"var":-619075.56},{"ba":"Digital Core","cc":"5500105","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Funded","ap":687856.68,"bp":1373197.48,"var":685340.8},{"ba":"Digital Core","cc":"5500105","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Approved (Bus Area Plan)","ap":0.0,"bp":-660000.0,"var":-660000.0},{"ba":"Digital Core","cc":"5500105","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Non-Transferred Agreements (Internal IT)","ap":38858.88,"bp":0.0,"var":-38858.88},{"ba":"Digital Core","cc":"5500105","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Total \u2013 All Funding Statuses","ap":726715.56,"bp":713197.48,"var":-13518.08},{"ba":"Digital Core","cc":"5500105","ceg":"Hdw & Sfw","ce":"3730-Telephone","fs":"Funded","ap":469.0,"bp":0.0,"var":-469.0},{"ba":"Digital Core","cc":"5500105","ceg":"Hdw & Sfw","ce":"3730-Telephone","fs":"Total \u2013 All Funding Statuses","ap":469.0,"bp":0.0,"var":-469.0},{"ba":"Digital Core","cc":"5500105","ceg":"Hdw & Sfw","ce":"8792-Corp Telecom Charges","fs":"Funded","ap":469.0,"bp":0.0,"var":-469.0},{"ba":"Digital Core","cc":"5500105","ceg":"Hdw & Sfw","ce":"8792-Corp Telecom Charges","fs":"Total \u2013 All Funding Statuses","ap":469.0,"bp":0.0,"var":-469.0},{"ba":"Digital Core","cc":"5500105","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":10233019.6,"bp":5070468.6,"var":-5162551.0},{"ba":"Digital Core","cc":"5500105","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Approved (Transferred)","ap":-5215942.44,"bp":0.0,"var":5215942.44},{"ba":"Digital Core","cc":"5500105","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Non-Transferred Agreements (Internal IT)","ap":1350000.0,"bp":0.0,"var":-1350000.0},{"ba":"Digital Core","cc":"5500105","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":6367077.16,"bp":5070468.6,"var":-1296608.56},{"ba":"Digital Core","cc":"5500105","ceg":"Lilly Labor (C&B)","ce":"11-Other Compensation - Taxable","fs":"Funded","ap":180000.0,"bp":0.0,"var":-180000.0},{"ba":"Digital Core","cc":"5500105","ceg":"Lilly Labor (C&B)","ce":"11-Other Compensation - Taxable","fs":"Total \u2013 All Funding Statuses","ap":180000.0,"bp":0.0,"var":-180000.0},{"ba":"Digital Core","cc":"5500105","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Funded","ap":14806.88,"bp":14808.0,"var":1.12},{"ba":"Digital Core","cc":"5500105","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Total \u2013 All Funding Statuses","ap":14806.88,"bp":14808.0,"var":1.12},{"ba":"Digital Core","cc":"5500105","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":286866.2,"bp":75000.0,"var":-211866.2},{"ba":"Digital Core","cc":"5500105","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":286866.2,"bp":75000.0,"var":-211866.2},{"ba":"Digital Core","cc":"5500105","ceg":"OTHER","ce":"1950-Moving Expenses","fs":"Funded","ap":11148.71,"bp":4992.0,"var":-6156.71},{"ba":"Digital Core","cc":"5500105","ceg":"OTHER","ce":"1950-Moving Expenses","fs":"Total \u2013 All Funding Statuses","ap":11148.71,"bp":4992.0,"var":-6156.71},{"ba":"Digital Core","cc":"5500105","ceg":"OTHER","ce":"2110-Recruiting","fs":"Funded","ap":0.0,"bp":15000.0,"var":15000.0},{"ba":"Digital Core","cc":"5500105","ceg":"OTHER","ce":"2110-Recruiting","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":15000.0,"var":15000.0},{"ba":"Digital Core","cc":"5500105","ceg":"OTHER","ce":"2111-Other Recruiting Expenses","fs":"Funded","ap":15848.32,"bp":0.0,"var":-15848.32},{"ba":"Digital Core","cc":"5500105","ceg":"OTHER","ce":"2111-Other Recruiting Expenses","fs":"Total \u2013 All Funding Statuses","ap":15848.32,"bp":0.0,"var":-15848.32},{"ba":"Digital Core","cc":"5500105","ceg":"OTHER","ce":"2930-Vehicle Rent","fs":"Funded","ap":22511.82,"bp":2004.0,"var":-20507.82},{"ba":"Digital Core","cc":"5500105","ceg":"OTHER","ce":"2930-Vehicle Rent","fs":"Total \u2013 All Funding Statuses","ap":22511.82,"bp":2004.0,"var":-20507.82},{"ba":"Digital Core","cc":"5500105","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":420374.09,"bp":519996.0,"var":99621.91},{"ba":"Digital Core","cc":"5500105","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":420374.09,"bp":519996.0,"var":99621.91},{"ba":"Digital Core","cc":"5500105","ceg":"OTHER","ce":"4161-Meals/Entertainment-Emply-Partially Dedu","fs":"Funded","ap":5225.96,"bp":8688.0,"var":3462.04},{"ba":"Digital Core","cc":"5500105","ceg":"OTHER","ce":"4161-Meals/Entertainment-Emply-Partially Dedu","fs":"Total \u2013 All Funding Statuses","ap":5225.96,"bp":8688.0,"var":3462.04},{"ba":"Digital Office","cc":"5500064","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Funded","ap":0.0,"bp":36000.0,"var":36000.0},{"ba":"Digital Office","cc":"5500064","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":36000.0,"var":36000.0},{"ba":"Digital Office","cc":"5500064","ceg":"External Labor","ce":"4750-Professional Services","fs":"Non-Transferred Agreements (Internal IT)","ap":255000.0,"bp":0.0,"var":-255000.0},{"ba":"Digital Office","cc":"5500064","ceg":"External Labor","ce":"4750-Professional Services","fs":"Pending","ap":0.0,"bp":200000.0,"var":200000.0},{"ba":"Digital Office","cc":"5500064","ceg":"External Labor","ce":"4750-Professional Services","fs":"Total \u2013 All Funding Statuses","ap":255000.0,"bp":200000.0,"var":-55000.0},{"ba":"Digital Office","cc":"5500064","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":589112.28,"bp":691937.28,"var":102825.0},{"ba":"Digital Office","cc":"5500064","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Non-Transferred Agreements (Internal IT)","ap":76920.9,"bp":0.0,"var":-76920.9},{"ba":"Digital Office","cc":"5500064","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":666033.18,"bp":691937.28,"var":25904.1},{"ba":"Digital Office","cc":"5500064","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Funded","ap":877.56,"bp":1025.88,"var":148.32},{"ba":"Digital Office","cc":"5500064","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Total \u2013 All Funding Statuses","ap":877.56,"bp":1025.88,"var":148.32},{"ba":"Digital Office","cc":"5500064","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":13049.16,"bp":13049.16,"var":0.0},{"ba":"Digital Office","cc":"5500064","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":13049.16,"bp":13049.16,"var":0.0},{"ba":"Digital Office","cc":"5500064","ceg":"OTHER","ce":"1950-Moving Expenses","fs":"Funded","ap":8523.0,"bp":0.0,"var":-8523.0},{"ba":"Digital Office","cc":"5500064","ceg":"OTHER","ce":"1950-Moving Expenses","fs":"Total \u2013 All Funding Statuses","ap":8523.0,"bp":0.0,"var":-8523.0},{"ba":"Digital Office","cc":"5500064","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":45023.64,"bp":45023.64,"var":0.0},{"ba":"Digital Office","cc":"5500064","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":45023.64,"bp":45023.64,"var":0.0},{"ba":"GS","cc":"5406036","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Funded","ap":0.0,"bp":21600.0,"var":21600.0},{"ba":"GS","cc":"5406036","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":21600.0,"var":21600.0},{"ba":"GS","cc":"5406036","ceg":"External Labor","ce":"7740-Contract Labor","fs":"PayGo - Future Funding","ap":0.0,"bp":3399996.0,"var":3399996.0},{"ba":"GS","cc":"5406036","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":3399996.0,"var":3399996.0},{"ba":"GS","cc":"5500036","ceg":"Depr & Amort","ce":"2700-Fixed Asset Depreciation","fs":"Funded","ap":321.75,"bp":19.98,"var":-301.77},{"ba":"GS","cc":"5500036","ceg":"Depr & Amort","ce":"2700-Fixed Asset Depreciation","fs":"Total \u2013 All Funding Statuses","ap":321.75,"bp":19.98,"var":-301.77},{"ba":"GS","cc":"5500036","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Funded","ap":0.0,"bp":50400.0,"var":50400.0},{"ba":"GS","cc":"5500036","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":50400.0,"var":50400.0},{"ba":"GS","cc":"5500036","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Funded","ap":0.0,"bp":24929.7,"var":24929.7},{"ba":"GS","cc":"5500036","ceg":"External Labor","ce":"7740-Contract Labor","fs":"PayGo - Future Funding","ap":0.0,"bp":1986888.63,"var":1986888.63},{"ba":"GS","cc":"5500036","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Non-Transferred Agreements (Internal IT)","ap":831092.0,"bp":0.0,"var":-831092.0},{"ba":"GS","cc":"5500036","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Unfunded (Not Incl. Enterprise Reporting)","ap":0.0,"bp":830000.0,"var":830000.0},{"ba":"GS","cc":"5500036","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Total \u2013 All Funding Statuses","ap":831092.0,"bp":2841818.33,"var":2010726.33},{"ba":"GS","cc":"5500036","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":1483046.97,"bp":1495921.56,"var":12874.59},{"ba":"GS","cc":"5500036","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":1483046.97,"bp":1495921.56,"var":12874.59},{"ba":"GS","cc":"5500036","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Funded","ap":2251.18,"bp":1632.32,"var":-618.86},{"ba":"GS","cc":"5500036","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Total \u2013 All Funding Statuses","ap":2251.18,"bp":1632.32,"var":-618.86},{"ba":"GS","cc":"5500036","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":29657.14,"bp":0.0,"var":-29657.14},{"ba":"GS","cc":"5500036","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":29657.14,"bp":0.0,"var":-29657.14},{"ba":"GS","cc":"5500036","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":145388.95,"bp":0.0,"var":-145388.95},{"ba":"GS","cc":"5500036","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":145388.95,"bp":0.0,"var":-145388.95},{"ba":"GS","cc":"5501061","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":495300.18,"bp":0.0,"var":-495300.18},{"ba":"GS","cc":"5501061","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Non-Transferred Agreements (Internal IT)","ap":-76920.9,"bp":0.0,"var":76920.9},{"ba":"GS","cc":"5501061","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":418379.28,"bp":0.0,"var":-418379.28},{"ba":"GS","cc":"5501061","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Funded","ap":1125.59,"bp":0.0,"var":-1125.59},{"ba":"GS","cc":"5501061","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Total \u2013 All Funding Statuses","ap":1125.59,"bp":0.0,"var":-1125.59},{"ba":"GS","cc":"5501061","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":23637.43,"bp":0.0,"var":-23637.43},{"ba":"GS","cc":"5501061","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":23637.43,"bp":0.0,"var":-23637.43},{"ba":"GS","cc":"5501061","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":67535.52,"bp":0.0,"var":-67535.52},{"ba":"GS","cc":"5501061","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":67535.52,"bp":0.0,"var":-67535.52},{"ba":"MQ","cc":"5406404","ceg":"Depr & Amort","ce":"7710-Software Amortization","fs":"Funded","ap":0.0,"bp":26.31,"var":26.31},{"ba":"MQ","cc":"5406404","ceg":"Depr & Amort","ce":"7710-Software Amortization","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":26.31,"var":26.31},{"ba":"MQ","cc":"5406404","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Funded","ap":0.0,"bp":28800.0,"var":28800.0},{"ba":"MQ","cc":"5406404","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":28800.0,"var":28800.0},{"ba":"MQ","cc":"5406404","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Funded","ap":0.0,"bp":2186623.29,"var":2186623.29},{"ba":"MQ","cc":"5406404","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":2186623.29,"var":2186623.29},{"ba":"MQ","cc":"5406404","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":0.0,"bp":599091.0,"var":599091.0},{"ba":"MQ","cc":"5406404","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":599091.0,"var":599091.0},{"ba":"MQ","cc":"5406404","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Funded","ap":0.0,"bp":8138.03,"var":8138.03},{"ba":"MQ","cc":"5406404","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":8138.03,"var":8138.03},{"ba":"MQ","cc":"5406404","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":0.0,"bp":3376.78,"var":3376.78},{"ba":"MQ","cc":"5406404","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":3376.78,"var":3376.78},{"ba":"MQ","cc":"5406404","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":0.0,"bp":27228.07,"var":27228.07},{"ba":"MQ","cc":"5406404","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":27228.07,"var":27228.07},{"ba":"MQ","cc":"5500033","ceg":"Depr & Amort","ce":"7710-Software Amortization","fs":"Funded","ap":292.65,"bp":126766.08,"var":126473.43},{"ba":"MQ","cc":"5500033","ceg":"Depr & Amort","ce":"7710-Software Amortization","fs":"Total \u2013 All Funding Statuses","ap":292.65,"bp":126766.08,"var":126473.43},{"ba":"MQ","cc":"5500033","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Funded","ap":0.0,"bp":28800.0,"var":28800.0},{"ba":"MQ","cc":"5500033","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":28800.0,"var":28800.0},{"ba":"MQ","cc":"5500033","ceg":"External Labor","ce":"4750-Professional Services","fs":"Funded","ap":845715.15,"bp":0.0,"var":-845715.15},{"ba":"MQ","cc":"5500033","ceg":"External Labor","ce":"4750-Professional Services","fs":"Total \u2013 All Funding Statuses","ap":845715.15,"bp":0.0,"var":-845715.15},{"ba":"MQ","cc":"5500033","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Funded","ap":0.0,"bp":1769921.38,"var":1769921.38},{"ba":"MQ","cc":"5500033","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Non-Transferred Agreements (Internal IT)","ap":-700000.0,"bp":0.0,"var":700000.0},{"ba":"MQ","cc":"5500033","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Total \u2013 All Funding Statuses","ap":-700000.0,"bp":1769921.38,"var":2469921.38},{"ba":"MQ","cc":"5500033","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":2744255.76,"bp":2737745.88,"var":-6509.88},{"ba":"MQ","cc":"5500033","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Non-Transferred Agreements (Internal IT)","ap":700000.0,"bp":0.0,"var":-700000.0},{"ba":"MQ","cc":"5500033","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":3444255.76,"bp":2737745.88,"var":-706509.88},{"ba":"MQ","cc":"5500033","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":41872.02,"bp":37200.0,"var":-4672.02},{"ba":"MQ","cc":"5500033","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":41872.02,"bp":37200.0,"var":-4672.02},{"ba":"MQ","cc":"5500033","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":337677.56,"bp":180000.0,"var":-157677.56},{"ba":"MQ","cc":"5500033","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":337677.56,"bp":180000.0,"var":-157677.56},{"ba":"MQ","cc":"5500033","ceg":"OTHER","ce":"4161-Meals/Entertainment-Emply-Partially Dedu","fs":"Funded","ap":0.0,"bp":4249.79,"var":4249.79},{"ba":"MQ","cc":"5500033","ceg":"OTHER","ce":"4161-Meals/Entertainment-Emply-Partially Dedu","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":4249.79,"var":4249.79},{"ba":"MQ","cc":"5500033","ceg":"OTHER","ce":"7700-Other Miscellaneous Expense","fs":"Funded","ap":100841.78,"bp":0.0,"var":-100841.78},{"ba":"MQ","cc":"5500033","ceg":"OTHER","ce":"7700-Other Miscellaneous Expense","fs":"Total \u2013 All Funding Statuses","ap":100841.78,"bp":0.0,"var":-100841.78},{"ba":"Research","cc":"5500080","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Funded","ap":0.0,"bp":26390.51,"var":26390.51},{"ba":"Research","cc":"5500080","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":26390.51,"var":26390.51},{"ba":"Research","cc":"5500080","ceg":"External Labor","ce":"4750-Professional Services","fs":"Funded","ap":-104171.0,"bp":0.0,"var":104171.0},{"ba":"Research","cc":"5500080","ceg":"External Labor","ce":"4750-Professional Services","fs":"Total \u2013 All Funding Statuses","ap":-104171.0,"bp":0.0,"var":104171.0},{"ba":"Research","cc":"5500080","ceg":"External Labor","ce":"4867-External Labor","fs":"Funded","ap":1680000.0,"bp":0.0,"var":-1680000.0},{"ba":"Research","cc":"5500080","ceg":"External Labor","ce":"4867-External Labor","fs":"Total \u2013 All Funding Statuses","ap":1680000.0,"bp":0.0,"var":-1680000.0},{"ba":"Research","cc":"5500080","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Funded","ap":0.0,"bp":2400000.0,"var":2400000.0},{"ba":"Research","cc":"5500080","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":2400000.0,"var":2400000.0},{"ba":"Research","cc":"5500080","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":2491935.43,"bp":1621231.2,"var":-870704.23},{"ba":"Research","cc":"5500080","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":2491935.43,"bp":1621231.2,"var":-870704.23},{"ba":"Research","cc":"5500080","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":71228.82,"bp":11760.0,"var":-59468.82},{"ba":"Research","cc":"5500080","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":71228.82,"bp":11760.0,"var":-59468.82},{"ba":"Research","cc":"5500080","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":126809.38,"bp":150000.0,"var":23190.62},{"ba":"Research","cc":"5500080","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":126809.38,"bp":150000.0,"var":23190.62},{"ba":"Research","cc":"5500080","ceg":"OTHER","ce":"7700-Other Miscellaneous Expense","fs":"Funded","ap":-12280.0,"bp":0.0,"var":12280.0},{"ba":"Research","cc":"5500080","ceg":"OTHER","ce":"7700-Other Miscellaneous Expense","fs":"Total \u2013 All Funding Statuses","ap":-12280.0,"bp":0.0,"var":12280.0},{"ba":"S/W Prod Engineering","cc":"5500037","ceg":"Depr & Amort","ce":"2700-Fixed Asset Depreciation","fs":"Funded","ap":2066.36,"bp":421.83,"var":-1644.53},{"ba":"S/W Prod Engineering","cc":"5500037","ceg":"Depr & Amort","ce":"2700-Fixed Asset Depreciation","fs":"Total \u2013 All Funding Statuses","ap":2066.36,"bp":421.83,"var":-1644.53},{"ba":"S/W Prod Engineering","cc":"5500037","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Funded","ap":0.0,"bp":72000.0,"var":72000.0},{"ba":"S/W Prod Engineering","cc":"5500037","ceg":"External Labor","ce":"4700-Outsourced Services","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":72000.0,"var":72000.0},{"ba":"S/W Prod Engineering","cc":"5500037","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Funded","ap":1592621.35,"bp":1767529.23,"var":174907.88},{"ba":"S/W Prod Engineering","cc":"5500037","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Approved (Transferred)","ap":0.0,"bp":660000.0,"var":660000.0},{"ba":"S/W Prod Engineering","cc":"5500037","ceg":"External Labor","ce":"7740-Contract Labor","fs":"Total \u2013 All Funding Statuses","ap":1592621.35,"bp":2427529.23,"var":834907.88},{"ba":"S/W Prod Engineering","cc":"5500037","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":2781333.22,"bp":5136443.76,"var":2355110.54},{"ba":"S/W Prod Engineering","cc":"5500037","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Approved (Transferred)","ap":150078.92,"bp":0.0,"var":-150078.92},{"ba":"S/W Prod Engineering","cc":"5500037","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":2931412.14,"bp":5136443.76,"var":2205031.62},{"ba":"S/W Prod Engineering","cc":"5500037","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Funded","ap":11255.92,"bp":31166.52,"var":19910.6},{"ba":"S/W Prod Engineering","cc":"5500037","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Total \u2013 All Funding Statuses","ap":11255.92,"bp":31166.52,"var":19910.6},{"ba":"S/W Prod Engineering","cc":"5500037","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":150658.27,"bp":144180.0,"var":-6478.27},{"ba":"S/W Prod Engineering","cc":"5500037","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":150658.27,"bp":144180.0,"var":-6478.27},{"ba":"S/W Prod Engineering","cc":"5500037","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":225118.38,"bp":204000.0,"var":-21118.38},{"ba":"S/W Prod Engineering","cc":"5500037","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":225118.38,"bp":204000.0,"var":-21118.38},{"ba":"S/W Prod Engineering","cc":"5500071","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Funded","ap":0.0,"bp":4097761.92,"var":4097761.92},{"ba":"S/W Prod Engineering","cc":"5500071","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Approved (Transferred)","ap":5429898.44,"bp":0.0,"var":-5429898.44},{"ba":"S/W Prod Engineering","cc":"5500071","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Non-Transferred Agreements (Internal IT)","ap":-1350000.0,"bp":0.0,"var":1350000.0},{"ba":"S/W Prod Engineering","cc":"5500071","ceg":"Lilly Labor (C&B)","ce":"10-Regular Salaries And Wages","fs":"Total \u2013 All Funding Statuses","ap":4079898.44,"bp":4097761.92,"var":17863.48},{"ba":"S/W Prod Engineering","cc":"5500071","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Funded","ap":0.0,"bp":6768.0,"var":6768.0},{"ba":"S/W Prod Engineering","cc":"5500071","ceg":"OTHER","ce":"1690-Employee Activities","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":6768.0,"var":6768.0},{"ba":"S/W Prod Engineering","cc":"5500071","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Funded","ap":31391.6,"bp":144180.0,"var":112788.4},{"ba":"S/W Prod Engineering","cc":"5500071","ceg":"OTHER","ce":"1800-Training & Conference Expense","fs":"Total \u2013 All Funding Statuses","ap":31391.6,"bp":144180.0,"var":112788.4},{"ba":"S/W Prod Engineering","cc":"5500071","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Funded","ap":0.0,"bp":240000.0,"var":240000.0},{"ba":"S/W Prod Engineering","cc":"5500071","ceg":"OTHER","ce":"3900-Travel Expense","fs":"Total \u2013 All Funding Statuses","ap":0.0,"bp":240000.0,"var":240000.0}];
+
+const BA_LIST  = ["Advanced Intelligence","Business Units","CTI - Commercial","CTI - MD","Cybersecurity","Digital Core","Digital Office","GS","MQ","Research","S/W Prod Engineering"];
+const CEG_LIST = ["Allocations In&Out","Depr & Amort","External Labor","Hdw & Sfw","Lilly Labor (C&B)","OTHER"];
+const FS_ALL   = "Total \u2013 All Funding Statuses";
+const BA_CC    = {"Advanced Intelligence":["5500040","5500063"],"Business Units":["5500182"],"CTI - Commercial":["5500038","5500126"],"CTI - MD":["5406256","5500083","5501356"],"Cybersecurity":["5500032"],"Digital Core":["5500016","5500035","5500105"],"Digital Office":["5500064"],"GS":["5406036","5500036","5501061"],"MQ":["5406404","5500033"],"Research":["5500080"],"S/W Prod Engineering":["5500037","5500071"]};
+const PIE_COLORS = ["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#7c6fe0","#0891b2","#65a30d","#c026d3","#f97316","#6b7280"];
+
+// helpers
+function fmt(v){const a=Math.abs(v);const s=a>=1e6?"$"+(a/1e6).toFixed(2)+"M":"$"+Math.round(a).toLocaleString();return v<0?"-"+s:s}
+function pct(v,b){if(!b||b===0)return"N/A";return((v/b)*100).toFixed(1)+"%"}
+function badge(v){return`<span class="badge ${v>=0?'inc':'dec'}">${v>=0?"↑ Increase":"↓ Decrease"}</span>`}
+function vc(v){return v>=0?"val-up":"val-down"}
+function agg(rows){return rows.reduce((a,r)=>({ap:a.ap+r.ap,bp:a.bp+r.bp}),{ap:0,bp:0})}
+function aggBy(rows,key){const m={};rows.forEach(r=>{if(!m[r[key]])m[r[key]]={ap:0,bp:0};m[r[key]].ap+=r.ap;m[r[key]].bp+=r.bp});return m}
+
+// filters
+function getF(){
+  return{
+    fs: document.getElementById("selFS").value,
+    ba: document.getElementById("selBA").value,
+    cc: document.getElementById("selCC").value,
+    ceg:document.getElementById("selCEG").value
+  }
+}
+function filtered(){
+  const{fs,ba,cc,ceg}=getF();
+  return DATA.filter(r=>
+    r.fs===fs &&
+    (ba ==="ALL"||r.ba ===ba) &&
+    (cc ==="ALL"||r.cc ===cc) &&
+    (ceg==="ALL"||r.ceg===ceg)
+  );
+}
+
+// cascading dropdowns: BA → CC → CEG
+function onBAChange(){
+  const ba=document.getElementById("selBA").value;
+  const sel=document.getElementById("selCC");
+  const prev=sel.value;
+  sel.innerHTML='<option value="ALL">All cost centres</option>';
+  const ccs=ba==="ALL"?[...new Set(Object.values(BA_CC).flat())].sort():(BA_CC[ba]||[]);
+  ccs.forEach(c=>{const o=document.createElement("option");o.value=o.textContent=c;sel.appendChild(o)});
+  sel.value=[...sel.options].map(o=>o.value).includes(prev)?prev:"ALL";
+  rebuildCEG();
+}
+
+function rebuildCEG(){
+  const ba=document.getElementById("selBA").value;
+  const cc=document.getElementById("selCC").value;
+  const fs=document.getElementById("selFS").value;
+  const sel=document.getElementById("selCEG");
+  const prev=sel.value;
+  // get distinct CEGs from DATA matching current ba/cc/fs
+  const cegs=[...new Set(
+    DATA.filter(r=>
+      r.fs===fs &&
+      (ba==="ALL"||r.ba===ba) &&
+      (cc==="ALL"||r.cc===cc)
+    ).map(r=>r.ceg)
+  )].sort();
+  sel.innerHTML='<option value="ALL">All cost element groups</option>';
+  cegs.forEach(g=>{const o=document.createElement("option");o.value=o.textContent=g;sel.appendChild(o)});
+  sel.value=[...sel.options].map(o=>o.value).includes(prev)?prev:"ALL";
+  render();
+}
+
+// charts
+const C={};
+function dc(id){if(C[id]){C[id].destroy();delete C[id]}}
+function mkBar(id,labels,datasets,h=300){
+  dc(id);
+  C[id]=new Chart(document.getElementById(id),{
+    type:"bar",data:{labels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>" "+i.dataset.label+": "+fmt(i.raw)}}},
+      scales:{x:{ticks:{font:{size:10},maxRotation:35},grid:{display:false}},
+              y:{ticks:{font:{size:10},callback:v=>Math.abs(v)>=1e6?"$"+(v/1e6).toFixed(1)+"M":"$"+Math.round(v/1000)+"K"},grid:{color:"rgba(0,0,0,0.05)"}}}}
+  });
+}
+function mkHBar(id,labels,vals){
+  dc(id);
+  const h=Math.max(180,labels.length*34+60);
+  document.getElementById(id).parentElement.style.height=h+"px";
+  C[id]=new Chart(document.getElementById(id),{
+    type:"bar",data:{labels,datasets:[{data:vals,backgroundColor:vals.map(v=>v>=0?"#1baf7a":"#e34948"),borderRadius:3}]},
+    options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>" "+fmt(i.raw)}}},
+      scales:{x:{ticks:{font:{size:10},callback:v=>(v<0?"-":"")+"$"+Math.abs(Math.round(v/1000))+"K"},grid:{color:"rgba(0,0,0,0.05)"}},
+              y:{ticks:{font:{size:10}},grid:{display:false}}}}
+  });
+}
+function mkPct(id,labels,vals){
+  dc(id);
+  C[id]=new Chart(document.getElementById(id),{
+    type:"bar",data:{labels,datasets:[{data:vals,backgroundColor:vals.map(v=>v>=0?"#1baf7a":"#e34948"),borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>" "+(i.raw>0?"+":"")+i.raw.toFixed(1)+"%"}}},
+      scales:{x:{ticks:{font:{size:10},maxRotation:35},grid:{display:false}},
+              y:{ticks:{font:{size:10},callback:v=>(v>0?"+":"")+v.toFixed(0)+"%"},grid:{color:"rgba(0,0,0,0.05)"},
+                 title:{display:true,text:"% Change",font:{size:11}}}}}
+  });
+}
+function mkDoughnut(id,labels,vals){
+  dc(id);
+  C[id]=new Chart(document.getElementById(id),{
+    type:"doughnut",data:{labels,datasets:[{data:vals,backgroundColor:PIE_COLORS,borderWidth:2,borderColor:"#fff"}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:"58%",
+      plugins:{legend:{position:"right",labels:{font:{size:10},boxWidth:10,padding:6}},
+               tooltip:{callbacks:{label:i=>" "+i.label+": "+fmt(i.raw)}}}}
+  });
+}
+
+// KPI
+function renderKPI(rows){
+  const t=agg(rows);const v=t.bp-t.ap;
+  const k=[
+    {l:"2026 adj plan",val:fmt(t.ap)},
+    {l:"2027 business plan",val:fmt(t.bp)},
+    {l:"Variance $",val:fmt(v),cls:v>=0?"up":"down"},
+    {l:"Variance %",val:(v>=0?"▲ ":"▼ ")+pct(v,t.ap),d:"vs 2026 adj plan",cls:v>=0?"up":"down"},
+  ];
+  document.getElementById("kpiRow").innerHTML=k.map(x=>`
+    <div class="kpi">
+      <div class="kpi-label">${x.l}</div>
+      <div class="kpi-value" style="${x.cls==='up'?'color:#1baf7a':x.cls==='down'?'color:#e34948':''}">${x.val}</div>
+      ${x.d?`<div class="kpi-delta ${x.cls}">${x.d}</div>`:""}
+    </div>`).join("");
+}
+
+// Overview
+function renderOverview(rows){
+  const byBA=aggBy(rows,"ba");
+  const bas=BA_LIST.filter(b=>byBA[b]);
+  mkBar("barBA",bas,[
+    {label:"2026 adj plan",data:bas.map(b=>Math.round(byBA[b].ap)),backgroundColor:"#2a78d6",borderRadius:3},
+    {label:"2027 BP",      data:bas.map(b=>Math.round(byBA[b].bp)),backgroundColor:"#1baf7a",borderRadius:3},
+  ]);
+  mkHBar("varBA",bas,bas.map(b=>Math.round(byBA[b].bp-byBA[b].ap)));
+  mkDoughnut("pieBA",bas,bas.map(b=>Math.max(0,Math.round(byBA[b].bp))));
+}
+
+// % change by BA
+function renderBAPct(rows){
+  const byBA=aggBy(rows,"ba");
+  const bas=BA_LIST.filter(b=>byBA[b]);
+  const pcts=bas.map(b=>{const t=byBA[b];return t.ap?parseFloat(((t.bp-t.ap)/t.ap*100).toFixed(1)):null});
+  mkPct("pctBA",bas,pcts);
+
+  const tbody=document.getElementById("baVarTableBody");
+  tbody.innerHTML=bas.map(b=>{
+    const t=byBA[b];const v=t.bp-t.ap;
+    const p=t.ap?((v/t.ap)*100).toFixed(1)+"%":"N/A";
+    return`<tr>
+      <td class="left" style="font-weight:600">${b}</td>
+      <td>${fmt(t.ap)}</td><td>${fmt(t.bp)}</td>
+      <td class="${vc(v)}">${fmt(v)}</td>
+      <td class="${vc(v)}">${v>=0?"+":""}${p}</td>
+      <td>${badge(v)}</td></tr>`;
+  }).join("");
+  const t=agg(rows);const v=t.bp-t.ap;
+  document.getElementById("baVarTotalRow").innerHTML=`
+    <td class="left">Grand total</td>
+    <td>${fmt(t.ap)}</td><td>${fmt(t.bp)}</td>
+    <td class="${vc(v)}">${fmt(v)}</td>
+    <td class="${vc(v)}">${v>=0?"+":""}${pct(v,t.ap)}</td>
+    <td>${badge(v)}</td>`;
+}
+
+// Funding status breakdown (only valid when FS = Total)
+function renderFunding(){
+  const{ba,cc}=getF();
+  const FUNDING_FS=["Funded","Approved (Transferred)","Approved (Bus Area Plan)","PayGo - Chargeback","PayGo - Future Funding","Non-Transferred Agreements (Internal IT)","Non-Transferred Agreements (External IT)","Unplanned Add","Pending","Unfunded (Not Incl. Enterprise Reporting)"];
+  const{ceg}=getF();
+  const fsRows=DATA.filter(r=>FUNDING_FS.includes(r.fs)&&(ba==="ALL"||r.ba===ba)&&(cc==="ALL"||r.cc===cc)&&(ceg==="ALL"||r.ceg===ceg));
+  const byFS=aggBy(fsRows,"fs");
+  const fss=FUNDING_FS.filter(f=>byFS[f]);
+  const shortFS=s=>s.length>22?s.substring(0,22)+"…":s;
+  mkBar("barFS",fss.map(shortFS),[
+    {label:"2026 adj plan",data:fss.map(f=>Math.round(byFS[f].ap)),backgroundColor:"#2a78d6",borderRadius:3},
+    {label:"2027 BP",      data:fss.map(f=>Math.round(byFS[f].bp)),backgroundColor:"#1baf7a",borderRadius:3},
+  ]);
+  mkHBar("varFS",fss.map(shortFS),fss.map(f=>Math.round(byFS[f].bp-byFS[f].ap)));
+  mkDoughnut("pieFS",fss.map(shortFS),fss.map(f=>Math.max(0,Math.round(byFS[f].bp))));
+}
+
+// CEG
+function renderCEG(rows){
+  const byCEG=aggBy(rows,"ceg");
+  const cegs=CEG_LIST.filter(c=>byCEG[c]);
+  mkBar("barCEG",cegs,[
+    {label:"2026 adj plan",data:cegs.map(c=>Math.round(byCEG[c].ap)),backgroundColor:"#2a78d6",borderRadius:3},
+    {label:"2027 BP",      data:cegs.map(c=>Math.round(byCEG[c].bp)),backgroundColor:"#1baf7a",borderRadius:3},
+  ]);
+  mkHBar("varCEG",cegs,cegs.map(c=>Math.round(byCEG[c].bp-byCEG[c].ap)));
+  mkDoughnut("pieCEG",cegs,cegs.map(c=>Math.max(0,Math.round(byCEG[c].bp))));
+}
+
+// Full variance table
+function renderFVT(rows){
+  const baO={},cegO={};
+  BA_LIST.forEach((b,i)=>baO[b]=i);CEG_LIST.forEach((c,i)=>cegO[c]=i);
+  const sorted=[...rows].sort((a,b)=>(baO[a.ba]??99)-(baO[b.ba]??99)||a.cc.localeCompare(b.cc)||(cegO[a.ceg]??99)-(cegO[b.ceg]??99));
+  let html="",lastBA=null;
+  sorted.forEach(r=>{
+    if(r.ba!==lastBA){
+      lastBA=r.ba;
+      const bt=agg(rows.filter(x=>x.ba===r.ba));const bv=bt.bp-bt.ap;
+      html+=`<tr class="subtotal-row">
+        <td class="left" colspan="5">${r.ba} — subtotal</td>
+        <td>${fmt(bt.ap)}</td><td>${fmt(bt.bp)}</td>
+        <td class="${vc(bv)}">${fmt(bv)}</td>
+        <td class="${vc(bv)}">${bv>=0?"+":""}${pct(bv,bt.ap)}</td>
+        <td>${badge(bv)}</td></tr>`;
+    }
+    const v=r.bp-r.ap;
+    html+=`<tr>
+      <td class="left" style="color:var(--text-secondary);padding-left:18px">${r.ba}</td>
+      <td class="left" style="color:var(--text-secondary)">${r.cc}</td>
+      <td class="left" style="color:var(--text-secondary)">${r.ceg}</td>
+      <td class="left" style="color:var(--text-secondary)">${r.ce}</td>
+      <td class="left" style="color:var(--text-secondary)">${r.fs}</td>
+      <td>${fmt(r.ap)}</td><td>${fmt(r.bp)}</td>
+      <td class="${vc(v)}">${fmt(v)}</td>
+      <td class="${vc(v)}">${v>=0?"+":""}${pct(v,r.ap)}</td>
+      <td>${badge(v)}</td></tr>`;
+  });
+  document.getElementById("fvtBody").innerHTML=html;
+  const t=agg(rows);const v=t.bp-t.ap;
+  document.getElementById("fvtTotal").innerHTML=`
+    <td class="left" colspan="5">Grand total</td>
+    <td>${fmt(t.ap)}</td><td>${fmt(t.bp)}</td>
+    <td class="${vc(v)}">${fmt(v)}</td>
+    <td class="${vc(v)}">${v>=0?"+":""}${pct(v,t.ap)}</td>
+    <td>${badge(v)}</td>`;
+}
+
+function toggleFVT(btn){const w=document.getElementById("fvtWrap");const c=w.style.display==="none";w.style.display=c?"":"none";btn.textContent=c?"▲ Collapse":"▼ Expand"}
+function switchTab(n,btn){document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));btn.classList.add("active");document.getElementById("panel-"+n).classList.add("active")}
+function resetFilters(){
+  document.getElementById("selFS").value=FS_ALL;
+  document.getElementById("selBA").value="ALL";
+  onBAChange(); // cascades CC → CEG → render
+}
+
+function render(){
+  const rows=filtered();
+  renderKPI(rows);
+  renderOverview(rows);
+  renderBAPct(rows);
+  renderFunding();
+  renderCEG(rows);
+  renderFVT(rows);
+}
+
+document.getElementById("selFS").addEventListener("change",()=>rebuildCEG());
+document.getElementById("selCC").addEventListener("change",()=>rebuildCEG());
+document.getElementById("selCEG").addEventListener("change",render);
+onBAChange(); // initialise CC → CEG → render
+</script>
+</body>
+</html>
